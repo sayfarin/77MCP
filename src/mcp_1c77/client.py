@@ -25,11 +25,11 @@ class ObjectNotFoundError(Exception):
 class MetadataClient:
     """Клиент для работы с метаданными 1С 7.7 через REST API."""
     
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:8080"):
         """Инициализация клиента.
         
         Args:
-            base_url: Базовый URL сервера (по умолчанию http://localhost:8000)
+            base_url: Базовый URL сервера (по умолчанию http://localhost:8080)
         """
         self.base_url = base_url.rstrip('/')
     
@@ -273,7 +273,7 @@ class MetadataClient:
 _default_client: Optional[MetadataClient] = None
 
 
-def init_client(base_url: str = "http://localhost:8000") -> MetadataClient:
+def init_client(base_url: str = "http://localhost:8080") -> MetadataClient:
     """Инициализировать глобальный клиент.
     
     Args:
@@ -328,4 +328,4 @@ if __name__ == "__main__":
         
     except ConfigError as e:
         print(f"Error: {e}")
-        print("\nMake sure the server is running at http://localhost:8000")
+        print("\nMake sure the server is running at http://localhost:8080")

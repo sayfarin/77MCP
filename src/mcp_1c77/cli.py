@@ -6,6 +6,7 @@
 
 import argparse
 import json
+import os
 import sys
 from typing import Optional
 
@@ -19,7 +20,7 @@ def cmd_status(client: MetadataClient, args: argparse.Namespace) -> int:
         print(json.dumps(status, indent=2, ensure_ascii=False))
     else:
         if status.get('loaded'):
-            print(f"✅ Конфигурация загружена")
+            print(f"[OK] Конфигурация загружена")
             print(f"   Название: {status.get('name', 'N/A')}")
             print(f"   Версия: {status.get('version', 'N/A')}")
             counts = status.get('counts', {})
@@ -27,7 +28,7 @@ def cmd_status(client: MetadataClient, args: argparse.Namespace) -> int:
             for key, value in counts.items():
                 print(f"     - {key}: {value}")
         else:
-            print("❌ Конфигурация не загружена")
+            print("[FAIL] Конфигурация не загружена")
     return 0
 
 
@@ -134,7 +135,7 @@ def cmd_validate_path(client: MetadataClient, args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
-        status = "✅ Валиден" if result.get('valid') else "❌ Не валиден"
+        status = "[OK] Валиден" if result.get('valid') else "[FAIL] Не валиден"
         print(f"{status}: {result.get('message', '')}")
     return 0 if result.get('valid') else 1
 
@@ -153,7 +154,7 @@ def cmd_validate_query(client: MetadataClient, args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
-        status = "✅ Валиден" if result.get('valid') else "❌ Не валиден"
+        status = "[OK] Валиден" if result.get('valid') else "[FAIL] Не валиден"
         print(f"{status}: {result.get('message', '')}")
     return 0 if result.get('valid') else 1
 
@@ -178,7 +179,7 @@ def cmd_info(client: MetadataClient, args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(info, indent=2, ensure_ascii=False))
     else:
-        print(f"📡 {info.get('name', 'API Server')}")
+        print(f"[API] {info.get('name', 'API Server')}")
         print(f"   Версия: {info.get('version', 'N/A')}")
         print(f"   Описание: {info.get('description', 'N/A')}")
         print(f"\n   Доступные endpoints:")
@@ -189,99 +190,105 @@ def cmd_info(client: MetadataClient, args: argparse.Namespace) -> int:
 
 def main(argv: Optional[list[str]] = None) -> int:
     """Основная функция CLI."""
+    default_url = os.environ.get('MCP_SERVER_URL', 'http://localhost:8080')
+
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument('--url', default=default_url,
+                               help=f'URL сервера (по умолчанию: {default_url})')
+    parent_parser.add_argument('--json', action='store_true',
+                               help='Вывод в формате JSON')
+
     parser = argparse.ArgumentParser(
         prog='mcp-1c77',
-        description='CLI для работы с метаданными 1С 7.7'
+        description='CLI для работы с метаданными 1С 7.7',
+        parents=[parent_parser]
     )
-    parser.add_argument('--url', default='http://localhost:8000',
-                       help='URL сервера (по умолчанию: http://localhost:8000)')
-    parser.add_argument('--json', action='store_true',
-                       help='Вывод в формате JSON')
-    
+
     subparsers = parser.add_subparsers(dest='command', help='Команды')
-    
+
     # status
-    p_status = subparsers.add_parser('status', help='Статус сервера')
+    p_status = subparsers.add_parser('status', help='Статус сервера', parents=[parent_parser])
     p_status.set_defaults(func=cmd_status)
-    
+
     # search
-    p_search = subparsers.add_parser('search', help='Поиск по метаданным')
+    p_search = subparsers.add_parser('search', help='Поиск по метаданным', parents=[parent_parser])
     p_search.add_argument('query', help='Поисковый запрос')
     p_search.add_argument('--limit', type=int, default=20, help='Макс. результатов')
     p_search.set_defaults(func=cmd_search)
-    
+
     # list
-    p_list = subparsers.add_parser('list', help='Список объектов')
+    p_list = subparsers.add_parser('list', help='Список объектов', parents=[parent_parser])
     p_list.add_argument('--type', '-t', default='', help='Тип объекта')
     p_list.add_argument('--limit', type=int, default=50, help='Макс. результатов')
     p_list.set_defaults(func=cmd_list)
-    
+
     # object
-    p_object = subparsers.add_parser('object', help='Информация об объекте')
+    p_object = subparsers.add_parser('object', help='Информация об объекте', parents=[parent_parser])
     p_object.add_argument('type', help='Тип объекта')
     p_object.add_argument('name', help='Имя объекта')
     p_object.set_defaults(func=cmd_object)
-    
+
     # module
-    p_module = subparsers.add_parser('module', help='Модуль объекта')
+    p_module = subparsers.add_parser('module', help='Модуль объекта', parents=[parent_parser])
     p_module.add_argument('type', help='Тип объекта')
     p_module.add_argument('name', help='Имя объекта')
     p_module.set_defaults(func=cmd_module)
-    
+
     # form
-    p_form = subparsers.add_parser('form', help='Форма объекта')
+    p_form = subparsers.add_parser('form', help='Форма объекта', parents=[parent_parser])
     p_form.add_argument('type', help='Тип объекта')
     p_form.add_argument('name', help='Имя объекта')
     p_form.set_defaults(func=cmd_form)
-    
+
     # deps
-    p_deps = subparsers.add_parser('deps', help='Зависимости объекта')
+    p_deps = subparsers.add_parser('deps', help='Зависимости объекта', parents=[parent_parser])
     p_deps.add_argument('type', help='Тип объекта')
     p_deps.add_argument('name', help='Имя объекта')
     p_deps.set_defaults(func=cmd_deps)
-    
+
     # dependents
-    p_dependents = subparsers.add_parser('dependents', help='Зависимые объекты')
+    p_dependents = subparsers.add_parser('dependents', help='Зависимые объекты', parents=[parent_parser])
     p_dependents.add_argument('type', help='Тип объекта')
     p_dependents.add_argument('name', help='Имя объекта')
     p_dependents.set_defaults(func=cmd_dependents)
-    
+
     # validate-path
-    p_vpath = subparsers.add_parser('validate-path', help='Валидация пути')
+    p_vpath = subparsers.add_parser('validate-path', help='Валидация пути', parents=[parent_parser])
     p_vpath.add_argument('type', help='Тип объекта')
     p_vpath.add_argument('name', help='Имя объекта')
     p_vpath.add_argument('path', help='Путь к реквизиту')
     p_vpath.set_defaults(func=cmd_validate_path)
-    
+
     # validate-query
-    p_vquery = subparsers.add_parser('validate-query', help='Валидация запроса')
+    p_vquery = subparsers.add_parser('validate-query', help='Валидация запроса', parents=[parent_parser])
     p_vquery.add_argument('query', nargs='?', help='Текст запроса')
     p_vquery.set_defaults(func=cmd_validate_query)
-    
+
     # export
-    p_export = subparsers.add_parser('export', help='Экспорт в JSON')
+    p_export = subparsers.add_parser('export', help='Экспорт в JSON', parents=[parent_parser])
     p_export.add_argument('--type', '-t', help='Тип объекта')
     p_export.add_argument('--name', '-n', help='Имя объекта')
     p_export.add_argument('--save', '-s', action='store_true', help='Сохранить в файл')
     p_export.add_argument('--output', '-o', help='Путь файла')
     p_export.set_defaults(func=cmd_export)
-    
+
     # info
-    p_info = subparsers.add_parser('info', help='Информация о сервере')
+    p_info = subparsers.add_parser('info', help='Информация о сервере', parents=[parent_parser])
     p_info.set_defaults(func=cmd_info)
-    
+
     args = parser.parse_args(argv)
-    
+
     if not args.command:
         parser.print_help()
         return 1
-    
+
     client = MetadataClient(args.url)
-    
+
     try:
         return args.func(client, args)
     except ConfigError as e:
         print(f"Ошибка: {e}", file=sys.stderr)
+        print(f"Убедитесь, что сервер запущен на {args.url} (запуск: python -m mcp_1c77)", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         print("\nПрервано", file=sys.stderr)
